@@ -38,6 +38,6 @@ it("requires confirmation before removing a library file", async () => {
 
   await user.click(screen.getByRole("button", { name: /remove german a1 certificate/i }));
   expect(dispatch).not.toHaveBeenCalled();
-  await user.click(screen.getByRole("button", { name: /confirm remove german a1 certificate/i }));
+  await user.click(screen.getByRole("button", { name: /remove file german a1 certificate/i }));
   expect(dispatch).toHaveBeenCalledWith({ type: "remove-library-file", id: "german-a1" });
 });

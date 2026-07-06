@@ -1,32 +1,54 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useReducer, useState } from "react";
-import AccessSharingView from "./access/AccessSharingView";
-import CostBudgetView from "./costs/CostBudgetView";
-import DashboardView from "./dashboard/DashboardView";
-import DocumentChecklist from "./documents/DocumentChecklist";
-import FloatingChat from "./FloatingChat";
-import DocumentLibrary from "./library/DocumentLibrary";
 import LoginView from "./LoginView";
-import ScholarshipsView from "./scholarships/ScholarshipsView";
 import Sidebar from "./Sidebar";
-import TimelineView from "./timeline/TimelineView";
-import UniversitiesView from "./universities/UniversitiesView";
 import { loadQuickStartDismissed, saveQuickStartDismissed } from "@/lib/onboarding";
 import { loadPersistedState, savePersistedState } from "@/lib/persistence";
 import { appReducer, initialState } from "@/lib/reducer";
+import { t } from "@/lib/i18n";
+
+function ViewLoading() {
+  return (
+    <section className="card view-loading" aria-label="Loading workspace section" aria-busy="true">
+      <span className="skeleton-line skeleton-title" />
+      <span className="skeleton-line" />
+      <span className="skeleton-line skeleton-short" />
+    </section>
+  );
+}
+
+const AccessSharingView = dynamic(() => import("./access/AccessSharingView"), { loading: () => <ViewLoading /> });
+const CostBudgetView = dynamic(() => import("./costs/CostBudgetView"), { loading: () => <ViewLoading /> });
+const DashboardView = dynamic(() => import("./dashboard/DashboardView"), { loading: () => <ViewLoading /> });
+const DocumentChecklist = dynamic(() => import("./documents/DocumentChecklist"), { loading: () => <ViewLoading /> });
+const DocumentLibrary = dynamic(() => import("./library/DocumentLibrary"), { loading: () => <ViewLoading /> });
+const FloatingChat = dynamic(() => import("./FloatingChat"), { loading: () => <ViewLoading /> });
+const ScholarshipsView = dynamic(() => import("./scholarships/ScholarshipsView"), { loading: () => <ViewLoading /> });
+const TimelineView = dynamic(() => import("./timeline/TimelineView"), { loading: () => <ViewLoading /> });
+const UniversitiesView = dynamic(() => import("./universities/UniversitiesView"), { loading: () => <ViewLoading /> });
 
 export default function AppShell() {
-  const [state, dispatch] = useReducer(appReducer, initialState, () => loadPersistedState() ?? initialState);
+  const [state, dispatch] = useReducer(appReducer, initialState);
   const [chatLoading, setChatLoading] = useState(false);
   const [failedChatMessage, setFailedChatMessage] = useState<string | null>(null);
-  const [saveStatus, setSaveStatus] = useState("Local autosave ready");
-  const [quickStartDismissed, setQuickStartDismissed] = useState(() => loadQuickStartDismissed());
+  const [saveStatus, setSaveStatus] = useState(t(initialState.lang, "app.save.ready"));
+  const [quickStartDismissed, setQuickStartDismissed] = useState(false);
+  const [hasHydrated, setHasHydrated] = useState(false);
   const readOnly = state.auth.role !== "applicant";
 
   useEffect(() => {
-    setSaveStatus(savePersistedState(state) ? "Saved locally on this device" : "Local save unavailable");
-  }, [state]);
+    const persistedState = loadPersistedState();
+    if (persistedState) dispatch({ type: "hydrate-state", state: persistedState });
+    setQuickStartDismissed(loadQuickStartDismissed());
+    setHasHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hasHydrated) return;
+    setSaveStatus(savePersistedState(state) ? t(state.lang, "app.save.saved") : t(state.lang, "app.save.unavailable"));
+  }, [hasHydrated, state]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = state.theme.theme;
@@ -41,6 +63,7 @@ export default function AppShell() {
         accessTokens={state.accessTokens}
         onLangChange={(lang) => dispatch({ type: "set-lang", lang })}
         onApplicantLogin={(email) => dispatch({ type: "login-applicant", email })}
+        onGoogleLogin={() => dispatch({ type: "login-applicant", email: "google.applicant@example.com" })}
         onSharedLogin={(role, token) => dispatch({ type: "login-shared", role, token })}
       />
     );
@@ -60,7 +83,7 @@ export default function AppShell() {
       dispatch({ type: "add-chat-message", role: "assistant", content: reply.content });
     } catch {
       setFailedChatMessage(content);
-      dispatch({ type: "add-chat-message", role: "assistant", content: "I cannot reach the advisor right now, but your local tracker remains available." });
+      dispatch({ type: "add-chat-message", role: "assistant", content: t(state.lang, "chat.fallback") });
     } finally {
       setChatLoading(false);
     }
@@ -76,12 +99,13 @@ export default function AppShell() {
         onLang={(lang) => dispatch({ type: "set-lang", lang })}
         onLogout={() => dispatch({ type: "logout" })}
         saveStatus={saveStatus}
-        syncStatus="Local autosave now / API sync later"
+        syncStatus={t(state.lang, "app.sync.local")}
       />
       <main className="app-main">
         {state.view === "dashboard" ? (
           <DashboardView
             state={state}
+            lang={state.lang}
             onNavigate={(view) => dispatch({ type: "set-view", view })}
             showQuickStart={state.auth.role === "applicant" && !quickStartDismissed}
             onDismissQuickStart={() => {
@@ -90,14 +114,15 @@ export default function AppShell() {
             }}
           />
         ) : null}
-        {state.view === "universities" ? <UniversitiesView universities={state.universities} readOnly={readOnly} dispatch={dispatch} /> : null}
-        {state.view === "documents" ? <DocumentChecklist documents={state.documents} readOnly={readOnly} dispatch={dispatch} /> : null}
-        {state.view === "library" ? <DocumentLibrary files={state.libraryFiles} otherFiles={state.otherFiles} readOnly={readOnly} dispatch={dispatch} /> : null}
-        {state.view === "cost" ? <CostBudgetView costs={state.costs} readOnly={readOnly} onChange={(key, value) => dispatch({ type: "set-cost", key, value })} /> : null}
-        {state.view === "timeline" ? <TimelineView state={state} readOnly={readOnly} dispatch={dispatch} /> : null}
-        {state.view === "scholarships" ? <ScholarshipsView scholarships={state.scholarships} readOnly={readOnly} dispatch={dispatch} /> : null}
+        {state.view === "universities" ? <UniversitiesView lang={state.lang} universities={state.universities} readOnly={readOnly} dispatch={dispatch} /> : null}
+        {state.view === "documents" ? <DocumentChecklist lang={state.lang} documents={state.documents} readOnly={readOnly} dispatch={dispatch} /> : null}
+        {state.view === "library" ? <DocumentLibrary lang={state.lang} files={state.libraryFiles} otherFiles={state.otherFiles} readOnly={readOnly} dispatch={dispatch} /> : null}
+        {state.view === "cost" ? <CostBudgetView lang={state.lang} costs={state.costs} readOnly={readOnly} onChange={(key, value) => dispatch({ type: "set-cost", key, value })} /> : null}
+        {state.view === "timeline" ? <TimelineView lang={state.lang} state={state} readOnly={readOnly} dispatch={dispatch} /> : null}
+        {state.view === "scholarships" ? <ScholarshipsView lang={state.lang} scholarships={state.scholarships} readOnly={readOnly} dispatch={dispatch} /> : null}
         {state.view === "access" && state.auth.role === "applicant" ? (
           <AccessSharingView
+            lang={state.lang}
             accessTokens={state.accessTokens}
             theme={state.theme}
             onGenerate={(role) => dispatch({ type: "generate-token", role })}
@@ -106,7 +131,7 @@ export default function AppShell() {
           />
         ) : null}
       </main>
-      <FloatingChat messages={state.chatMessages} loading={chatLoading} failedMessage={failedChatMessage} onSend={sendChat} />
+      <FloatingChat lang={state.lang} messages={state.chatMessages} loading={chatLoading} failedMessage={failedChatMessage} onSend={sendChat} />
     </div>
   );
 }

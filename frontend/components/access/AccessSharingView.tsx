@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import type { ThemePrefs } from "@/lib/types";
+import { roleLabel, t } from "@/lib/i18n";
+import type { Lang, ThemePrefs } from "@/lib/types";
 
-export default function AccessSharingView({ accessTokens, theme, onGenerate, onCopy, onThemeChange }: {
+export default function AccessSharingView({ lang = "en", accessTokens, theme, onGenerate, onCopy, onThemeChange }: {
+  lang?: Lang;
   accessTokens: { family: string | null; counselor: string | null };
   theme: ThemePrefs;
   onGenerate: (role: "family" | "counselor") => void;
@@ -14,28 +16,28 @@ export default function AccessSharingView({ accessTokens, theme, onGenerate, onC
 
   function changeTheme(themePatch: Partial<ThemePrefs>) {
     onThemeChange(themePatch);
-    setStatus("Workspace preference saved locally.");
+    setStatus(t(lang, "access.saved"));
   }
 
   function copyToken(role: "family" | "counselor", token: string) {
     onCopy(token);
-    setStatus(`${role === "family" ? "Family" : "Counselor"} token copied.`);
+    setStatus(t(lang, "access.tokenCopied", { role: roleLabel(lang, role) }));
   }
 
   return (
     <div className="page-stack access-column">
       <header>
-        <h1 className="page-title">Access & Sharing</h1>
-        <p className="page-kicker">Share protected read-only access with family and counselor reviewers.</p>
+        <h1 className="page-title">{t(lang, "access.title")}</h1>
+        <p className="page-kicker">{t(lang, "access.kicker")}</p>
       </header>
       <section className="card preference-card">
         <div>
-          <h2 className="card-title">Workspace preferences</h2>
-          <p className="muted">Tune the interface without changing application data.</p>
+          <h2 className="card-title">{t(lang, "access.preferences")}</h2>
+          <p className="muted">{t(lang, "access.preferencesDetail")}</p>
         </div>
         <div className="preference-grid">
-          <div className="preference-group" aria-label="Theme">
-            <span className="field-label">Theme</span>
+          <div className="preference-group" aria-label={t(lang, "access.theme")}>
+            <span className="field-label">{t(lang, "access.theme")}</span>
             <div className="segmented-control">
               {(["warm", "cool", "forest", "terracotta"] as const).map((item) => (
                 <button key={item} type="button" aria-pressed={theme.theme === item} aria-label={`${item} theme`} onClick={() => changeTheme({ theme: item })}>
@@ -44,8 +46,8 @@ export default function AccessSharingView({ accessTokens, theme, onGenerate, onC
               ))}
             </div>
           </div>
-          <div className="preference-group" aria-label="Corners">
-            <span className="field-label">Corners</span>
+          <div className="preference-group" aria-label={t(lang, "access.corners")}>
+            <span className="field-label">{t(lang, "access.corners")}</span>
             <div className="segmented-control">
               {(["soft", "sharp"] as const).map((item) => (
                 <button key={item} type="button" aria-pressed={theme.cornerStyle === item} aria-label={`${item} corners`} onClick={() => changeTheme({ cornerStyle: item })}>
@@ -54,8 +56,8 @@ export default function AccessSharingView({ accessTokens, theme, onGenerate, onC
               ))}
             </div>
           </div>
-          <div className="preference-group" aria-label="Type">
-            <span className="field-label">Type</span>
+          <div className="preference-group" aria-label={t(lang, "access.type")}>
+            <span className="field-label">{t(lang, "access.type")}</span>
             <div className="segmented-control">
               <button type="button" aria-pressed={theme.typeCharacter === "serif-led"} aria-label="serif led type" onClick={() => changeTheme({ typeCharacter: "serif-led" })}>
                 serif
@@ -72,16 +74,16 @@ export default function AccessSharingView({ accessTokens, theme, onGenerate, onC
         const token = accessTokens[role];
         return (
           <section className="card" key={role}>
-            <h2 className="card-title">{role === "family" ? "Family member" : "Counselor"} token</h2>
-            <p className="muted">{token ?? "No token generated"}</p>
-            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-              <button className="btn btn-primary" type="button" onClick={() => onGenerate(role)}>Generate</button>
-              <button className="btn btn-quiet" type="button" disabled={!token} onClick={() => token && copyToken(role, token)}>Copy token</button>
+            <h2 className="card-title">{t(lang, "access.token", { role: role === "family" ? roleLabel(lang, "familyMember") : roleLabel(lang, "counselor") })}</h2>
+            <p className="muted">{token ?? t(lang, "access.noToken")}</p>
+            <div className="token-actions">
+              <button className="btn btn-primary" type="button" onClick={() => onGenerate(role)}>{t(lang, "access.generate")}</button>
+              <button className="btn btn-quiet" type="button" disabled={!token} onClick={() => token && copyToken(role, token)}>{t(lang, "access.copyToken")}</button>
             </div>
           </section>
         );
       })}
-      <p className="muted">Regenerating a token invalidates the old token for future login, but it does not log out existing sessions.</p>
+      <p className="muted">{t(lang, "access.regenerate")}</p>
     </div>
   );
 }

@@ -2,11 +2,13 @@
 
 import type { Action } from "@/lib/reducer";
 import { glossaryDetail } from "@/lib/glossary";
-import type { Scholarship, ScholarshipStatus } from "@/lib/types";
+import { statusLabel, t } from "@/lib/i18n";
+import type { Lang, Scholarship, ScholarshipStatus } from "@/lib/types";
 
 const statuses: ScholarshipStatus[] = ["Not applied", "In progress", "Applied", "Awarded"];
 
-export default function ScholarshipsView({ scholarships, readOnly, dispatch }: {
+export default function ScholarshipsView({ lang = "en", scholarships, readOnly, dispatch }: {
+  lang?: Lang;
   scholarships: Scholarship[];
   readOnly: boolean;
   dispatch: React.Dispatch<Action>;
@@ -14,9 +16,9 @@ export default function ScholarshipsView({ scholarships, readOnly, dispatch }: {
   return (
     <div className="page-stack">
       <header>
-        <h1 className="page-title">Scholarships</h1>
-        <p className="page-kicker">Funding opportunities tracked with the same status language.</p>
-        <p className="trust-note">{glossaryDetail("DAAD")}</p>
+        <h1 className="page-title">{t(lang, "scholarships.title")}</h1>
+        <p className="page-kicker">{t(lang, "scholarships.kicker")}</p>
+        <p className="trust-note">{glossaryDetail("DAAD", lang)}</p>
       </header>
       <div className="scholarship-list">
         {scholarships.map((scholarship) => (
@@ -32,12 +34,12 @@ export default function ScholarshipsView({ scholarships, readOnly, dispatch }: {
                 disabled={readOnly}
                 onChange={(event) => dispatch({ type: "set-scholarship-status", id: scholarship.id, status: event.target.value as ScholarshipStatus })}
               >
-                {statuses.map((status) => <option key={status}>{status}</option>)}
+                {statuses.map((status) => <option key={status} value={status}>{statusLabel(lang, status)}</option>)}
               </select>
             </div>
             <div className="row">
-              <span className="muted">Deadline: {scholarship.deadline ?? "Rolling / university-specific"}</span>
-              <a href={scholarship.link} target="_blank" rel="noreferrer">Details</a>
+              <span className="muted">{t(lang, "scholarships.deadline", { date: scholarship.deadline ?? t(lang, "scholarships.rolling") })}</span>
+              <a href={scholarship.link} target="_blank" rel="noreferrer">{t(lang, "scholarships.details")}</a>
             </div>
           </article>
         ))}

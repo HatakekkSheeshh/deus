@@ -55,3 +55,15 @@ it("lets applicants add and remove custom timeline milestones", async () => {
   await user.click(screen.getByRole("button", { name: /remove book visa appointment/i }));
   expect(dispatch).toHaveBeenCalledWith({ type: "delete-custom-event", id: "visa" });
 });
+
+it("keeps custom milestone remove controls aligned with the timeline date controls", () => {
+  render(<TimelineView state={initialState} readOnly={false} dispatch={() => {}} />);
+
+  const remove = screen.getByRole("button", { name: /remove book visa appointment/i });
+  const actions = remove.closest(".timeline-actions");
+
+  expect(actions).not.toBeNull();
+  expect(actions?.querySelector(".timeline-date-input")).not.toBeNull();
+  expect(actions).toContainElement(remove);
+  expect(actions?.firstElementChild).toBe(remove);
+});

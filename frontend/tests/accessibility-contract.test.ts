@@ -19,3 +19,28 @@ it("keeps banned visual patterns out of global CSS", () => {
   expect(css).not.toContain("repeating-linear-gradient");
   expect(css).not.toContain("border-left: 4px");
 });
+
+it("keeps action layouts in reusable classes instead of inline flex styles", () => {
+  const accessView = fs.readFileSync("components/access/AccessSharingView.tsx", "utf8");
+  const documentLibrary = fs.readFileSync("components/library/DocumentLibrary.tsx", "utf8");
+
+  expect(accessView).toContain("token-actions");
+  expect(documentLibrary).toContain("library-file-actions");
+  expect(accessView).not.toContain('style={{ display: "flex"');
+  expect(documentLibrary).not.toContain('style={{ display: "flex"');
+});
+
+it("keeps dynamic timeline pill colors tokenized", () => {
+  const timelineView = fs.readFileSync("components/timeline/TimelineView.tsx", "utf8");
+
+  expect(timelineView).not.toContain('"#fff"');
+  expect(timelineView).toContain("var(--card)");
+});
+
+it("declares a responsive viewport for mobile browsers", () => {
+  const layout = fs.readFileSync("app/layout.tsx", "utf8");
+
+  expect(layout).toContain("Viewport");
+  expect(layout).toContain("width: \"device-width\"");
+  expect(layout).toContain("initialScale: 1");
+});

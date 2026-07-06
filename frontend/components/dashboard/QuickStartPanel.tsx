@@ -1,11 +1,14 @@
 import { mergeTimeline } from "@/lib/derived";
-import type { AppState, View } from "@/lib/types";
+import { t } from "@/lib/i18n";
+import type { AppState, Lang, View } from "@/lib/types";
 
 export default function QuickStartPanel({
+  lang = "en",
   state,
   onNavigate,
   onDismiss
 }: {
+  lang?: Lang;
   state: AppState;
   onNavigate: (view: View) => void;
   onDismiss: () => void;
@@ -17,31 +20,31 @@ export default function QuickStartPanel({
     <section className="card quick-start-panel" aria-labelledby="quick-start-title">
       <div className="quick-start-head">
         <div>
-          <h2 className="card-title" id="quick-start-title">Quick start</h2>
-          <p className="muted">Three checks that make the tracker useful right away.</p>
+          <h2 className="card-title" id="quick-start-title">{t(lang, "quick.title")}</h2>
+          <p className="muted">{t(lang, "quick.kicker")}</p>
         </div>
-        <button className="btn btn-quiet" type="button" onClick={onDismiss}>Dismiss quick start</button>
+        <button className="btn btn-quiet" type="button" onClick={onDismiss}>{t(lang, "quick.dismiss")}</button>
       </div>
       <div className="quick-start-grid">
         <button className="quick-start-step" type="button" onClick={() => onNavigate("timeline")}>
           <span className="step-index">1</span>
           <span>
-            <strong>Review next deadline</strong>
-            <span className="muted">{nextEvent ? `${nextEvent.label} is ${nextEvent.days} days away.` : "Add a timeline milestone when you know one."}</span>
+            <strong>{t(lang, "quick.reviewDeadline")}</strong>
+            <span className="muted">{nextEvent ? t(lang, "quick.deadlineAway", { name: nextEvent.label, count: nextEvent.days ?? 0 }) : t(lang, "quick.addMilestone")}</span>
           </span>
         </button>
         <button className="quick-start-step" type="button" onClick={() => onNavigate("documents")}>
           <span className="step-index">2</span>
           <span>
-            <strong>Finish blocking document</strong>
-            <span className="muted">{missingDocument ? `${missingDocument.name} is still open.` : "Core documents are marked ready."}</span>
+            <strong>{t(lang, "quick.finishDocument")}</strong>
+            <span className="muted">{missingDocument ? t(lang, "quick.documentOpen", { name: missingDocument.name }) : t(lang, "quick.documentsReady")}</span>
           </span>
         </button>
         <div className="quick-start-step">
           <span className="step-index">3</span>
           <span>
-            <strong>Confirm local autosave</strong>
-            <span className="muted">Changes are saved on this device now; API sync can come later.</span>
+            <strong>{t(lang, "quick.confirmAutosave")}</strong>
+            <span className="muted">{t(lang, "quick.autosaveDetail")}</span>
           </span>
         </div>
       </div>
