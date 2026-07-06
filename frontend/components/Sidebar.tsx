@@ -1,0 +1,74 @@
+"use client";
+
+import { CalendarDays, FileCheck2, FolderOpen, GraduationCap, Home, KeyRound, Landmark, LogOut, WalletCards } from "lucide-react";
+import LanguageSwitch from "./LanguageSwitch";
+import { labelForView } from "@/lib/i18n";
+import type { Lang, Role, View } from "@/lib/types";
+
+const navItems: Array<{ view: View; icon: React.ComponentType<{ size?: number }> }> = [
+  { view: "dashboard", icon: Home },
+  { view: "universities", icon: GraduationCap },
+  { view: "documents", icon: FileCheck2 },
+  { view: "library", icon: FolderOpen },
+  { view: "cost", icon: WalletCards },
+  { view: "timeline", icon: CalendarDays },
+  { view: "scholarships", icon: Landmark },
+  { view: "access", icon: KeyRound }
+];
+
+export default function Sidebar({
+  view,
+  lang,
+  role,
+  onView,
+  onLang,
+  onLogout,
+  saveStatus,
+  syncStatus
+}: {
+  view: View;
+  lang: Lang;
+  role: Role;
+  onView: (view: View) => void;
+  onLang: (lang: Lang) => void;
+  onLogout: () => void;
+  saveStatus: string;
+  syncStatus: string;
+}) {
+  return (
+    <aside className="app-sidebar">
+      <div>
+        <div className="brand-title">German Master</div>
+        <p className="muted">Application control room</p>
+      </div>
+      <nav className="nav-list" aria-label="Application sections">
+        {navItems.filter((item) => role === "applicant" || item.view !== "access").map(({ view: itemView, icon: Icon }) => (
+          <button
+            key={itemView}
+            className="nav-item"
+            type="button"
+            aria-current={view === itemView ? "page" : undefined}
+            onClick={() => onView(itemView)}
+          >
+            <span className="nav-dot" />
+            <Icon size={16} />
+            {labelForView(lang, itemView)}
+          </button>
+        ))}
+      </nav>
+      <div className="sidebar-footer">
+        <LanguageSwitch lang={lang} onChange={onLang} />
+        <div>
+          <span className="chip chip-muted">{role}</span>
+          {role !== "applicant" ? <span className="chip chip-warning" style={{ marginLeft: 8 }}>view only</span> : null}
+        </div>
+        <p className="save-status" aria-live="polite">{saveStatus}</p>
+        <p className="save-status">{syncStatus}</p>
+        <button className="btn btn-quiet sidebar-logout" type="button" onClick={onLogout}>
+          <LogOut size={16} />
+          Log out
+        </button>
+      </div>
+    </aside>
+  );
+}

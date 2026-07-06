@@ -209,6 +209,12 @@ tempCodeRunnerFile.py
 # PyPI configuration file
 .pypirc
 
+# Node / Next.js frontend
+node_modules/
+.next/
+frontend/node_modules/
+frontend/.next/
+
 # Marimo
 marimo/_static/
 marimo/_lsp/
@@ -216,3 +222,15 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+node_modules
+
+
+# ai
+.codegraph/
+.codex/
+.impeccable/
+cache/
+impeccable/
+**/superpowers/*
+DESIGN.md
+PRODUCT.md
