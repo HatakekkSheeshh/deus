@@ -240,3 +240,5 @@ DESIGN.md
 PRODUCT.md
 .design-artifact/
 supabase/
+!frontend/lib/supabase/
+!frontend/lib/supabase/**
