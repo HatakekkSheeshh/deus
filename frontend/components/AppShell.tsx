@@ -8,6 +8,8 @@ import { loadQuickStartDismissed, saveQuickStartDismissed } from "@/lib/onboardi
 import { loadPersistedState, savePersistedState } from "@/lib/persistence";
 import { appReducer, initialState } from "@/lib/reducer";
 import { t } from "@/lib/i18n";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import type { AppState } from "@/lib/types";
 
 function ViewLoading() {
   return (
@@ -29,8 +31,17 @@ const ScholarshipsView = dynamic(() => import("./scholarships/ScholarshipsView")
 const TimelineView = dynamic(() => import("./timeline/TimelineView"), { loading: () => <ViewLoading /> });
 const UniversitiesView = dynamic(() => import("./universities/UniversitiesView"), { loading: () => <ViewLoading /> });
 
+function withoutPersistedAuth(state: AppState): AppState {
+  return { ...state, auth: { loggedIn: false, role: null } };
+}
+
+function applicantEmail(user: { email?: string | null }) {
+  return user.email?.trim() || "applicant@example.com";
+}
+
 export default function AppShell() {
   const [state, dispatch] = useReducer(appReducer, initialState);
+  const [supabase, setSupabase] = useState<ReturnType<typeof createSupabaseBrowserClient> | null>(null);
   const [chatLoading, setChatLoading] = useState(false);
   const [failedChatMessage, setFailedChatMessage] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState(t(initialState.lang, "app.save.ready"));
@@ -40,10 +51,35 @@ export default function AppShell() {
 
   useEffect(() => {
     const persistedState = loadPersistedState();
-    if (persistedState) dispatch({ type: "hydrate-state", state: persistedState });
+    if (persistedState) dispatch({ type: "hydrate-state", state: withoutPersistedAuth(persistedState) });
     setQuickStartDismissed(loadQuickStartDismissed());
     setHasHydrated(true);
   }, []);
+
+  useEffect(() => {
+    setSupabase(createSupabaseBrowserClient());
+  }, []);
+
+  useEffect(() => {
+    if (!supabase) return;
+    let mounted = true;
+
+    supabase.auth.getSession().then(({ data }) => {
+      const user = data.session?.user;
+      if (mounted && user) dispatch({ type: "login-applicant", email: applicantEmail(user), userId: user.id });
+    });
+
+    const { data } = supabase.auth.onAuthStateChange((_event: string, session: { user?: { id: string; email?: string | null } } | null) => {
+      if (session?.user) {
+        dispatch({ type: "login-applicant", email: applicantEmail(session.user), userId: session.user.id });
+      }
+    });
+
+    return () => {
+      mounted = false;
+      data.subscription.unsubscribe();
+    };
+  }, [supabase]);
 
   useEffect(() => {
     if (!hasHydrated) return;
@@ -56,15 +92,66 @@ export default function AppShell() {
     document.documentElement.dataset.type = state.theme.typeCharacter;
   }, [state.theme]);
 
+  async function loginApplicant(input: { email: string; password: string; mode: "sign-in" | "sign-up" }) {
+    if (!supabase) return "Authentication is still loading.";
+    const result = input.mode === "sign-up"
+      ? await supabase.auth.signUp({ email: input.email, password: input.password })
+      : await supabase.auth.signInWithPassword({ email: input.email, password: input.password });
+
+    if (result.error) return result.error.message;
+    const user = result.data.user;
+    if (!user) return "Supabase did not return an authenticated user.";
+    dispatch({ type: "login-applicant", email: applicantEmail(user), userId: user.id });
+    return null;
+  }
+
+  async function loginWithGoogle() {
+    if (!supabase) return "Authentication is still loading.";
+    const redirectTo = new URL("/auth/callback", window.location.origin).toString();
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo }
+    });
+    return error?.message ?? null;
+  }
+
+  async function loginWithSharedToken(token: string) {
+    const response = await fetch("/api/v1/access-tokens/redeem", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token })
+    });
+    const payload = await response.json().catch(() => ({})) as { role?: "family" | "counselor"; token?: string; error?: string };
+    if (!response.ok || !payload.role) return payload.error ?? "Invalid or expired access token";
+    dispatch({ type: "login-shared", role: payload.role, token: payload.token ?? token });
+    return null;
+  }
+
+  async function generateSharedToken(role: "family" | "counselor") {
+    const response = await fetch("/api/v1/access-tokens/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role })
+    });
+    const payload = await response.json().catch(() => ({})) as { token?: string; error?: string };
+    if (!response.ok || !payload.token) return payload.error ?? "Could not generate access token";
+    dispatch({ type: "set-access-token", role, token: payload.token });
+    return null;
+  }
+
+  async function logout() {
+    await supabase?.auth.signOut();
+    dispatch({ type: "logout" });
+  }
+
   if (!state.auth.loggedIn || !state.auth.role) {
     return (
       <LoginView
         lang={state.lang}
-        accessTokens={state.accessTokens}
         onLangChange={(lang) => dispatch({ type: "set-lang", lang })}
-        onApplicantLogin={(email) => dispatch({ type: "login-applicant", email })}
-        onGoogleLogin={() => dispatch({ type: "login-applicant", email: "google.applicant@example.com" })}
-        onSharedLogin={(role, token) => dispatch({ type: "login-shared", role, token })}
+        onApplicantLogin={loginApplicant}
+        onGoogleLogin={loginWithGoogle}
+        onSharedLogin={loginWithSharedToken}
       />
     );
   }
@@ -97,7 +184,7 @@ export default function AppShell() {
         role={state.auth.role}
         onView={(view) => dispatch({ type: "set-view", view })}
         onLang={(lang) => dispatch({ type: "set-lang", lang })}
-        onLogout={() => dispatch({ type: "logout" })}
+        onLogout={() => void logout()}
         saveStatus={saveStatus}
         syncStatus={t(state.lang, "app.sync.local")}
       />
@@ -125,7 +212,7 @@ export default function AppShell() {
             lang={state.lang}
             accessTokens={state.accessTokens}
             theme={state.theme}
-            onGenerate={(role) => dispatch({ type: "generate-token", role })}
+            onGenerate={generateSharedToken}
             onCopy={(token) => navigator.clipboard?.writeText(token)}
             onThemeChange={(theme) => dispatch({ type: "set-theme", theme })}
           />

@@ -18,6 +18,7 @@ export type LibraryCategory = "german" | "prep" | "certs" | "other";
 export interface AuthState {
   loggedIn: boolean;
   role: Role | null;
+  userId?: string;
   email?: string;
   token?: string;
 }

@@ -5,6 +5,7 @@ import type {
   DocumentItem,
   Lang,
   LibraryFile,
+  Role,
   ScholarshipStatus,
   University,
   ThemePrefs,
@@ -16,7 +17,7 @@ export const initialState: AppState = initialMockState;
 
 export type Action =
   | { type: "hydrate-state"; state: AppState }
-  | { type: "login-applicant"; email: string }
+  | { type: "login-applicant"; email: string; userId?: string }
   | { type: "login-shared"; role: "family" | "counselor"; token: string }
   | { type: "logout" }
   | { type: "set-lang"; lang: Lang }
@@ -35,6 +36,7 @@ export type Action =
   | { type: "add-custom-event"; label: string; date: string }
   | { type: "delete-custom-event"; id: string }
   | { type: "generate-token"; role: "family" | "counselor" }
+  | { type: "set-access-token"; role: Extract<Role, "family" | "counselor">; token: string }
   | { type: "add-library-file"; file: LibraryFile }
   | { type: "remove-library-file"; id: string }
   | { type: "add-chat-message"; content: string; role: "user" | "assistant" };
@@ -43,18 +45,13 @@ function canMutate(state: AppState): boolean {
   return state.auth.role === "applicant";
 }
 
-function tokenFor(role: "family" | "counselor") {
-  const prefix = role === "family" ? "FAM" : "COU";
-  return `${prefix}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
-}
-
 export function appReducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case "hydrate-state":
       return action.state;
     case "login-applicant":
       return action.email.trim()
-        ? { ...state, auth: { loggedIn: true, role: "applicant", email: action.email.trim() }, view: "dashboard" }
+        ? { ...state, auth: { loggedIn: true, role: "applicant", email: action.email.trim(), userId: action.userId }, view: "dashboard" }
         : state;
     case "login-shared":
       return { ...state, auth: { loggedIn: true, role: action.role, token: action.token }, view: "dashboard" };
@@ -107,7 +104,10 @@ export function appReducer(state: AppState, action: Action): AppState {
       return { ...state, customEvents: state.customEvents.filter((e) => e.id !== action.id) };
     case "generate-token":
       if (!canMutate(state)) return state;
-      return { ...state, accessTokens: { ...state.accessTokens, [action.role]: tokenFor(action.role) } };
+      return state;
+    case "set-access-token":
+      if (!canMutate(state)) return state;
+      return { ...state, accessTokens: { ...state.accessTokens, [action.role]: action.token } };
     case "add-library-file":
       if (!canMutate(state)) return state;
       if (action.file.category === "other") return { ...state, otherFiles: [...state.otherFiles, action.file] };

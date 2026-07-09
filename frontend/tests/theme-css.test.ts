@@ -23,6 +23,25 @@ it("keeps the assistant panel floating without an inner chat frame", () => {
   expect(css).toMatch(/\.chat-log\s*{[^}]*background:\s*transparent;[^}]*border:\s*0;/s);
 });
 
+it("lays out the dashboard cost breakdown as a pie chart with a right-side legend", () => {
+  const css = fs.readFileSync("app/globals.css", "utf8");
+
+  expect(css).toMatch(/\.cost-breakdown\s*{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*minmax\(140px,\s*180px\) minmax\(0,\s*1fr\);/s);
+  expect(css).toMatch(/\.cost-pie\s*{[^}]*aspect-ratio:\s*1;[^}]*border-radius:\s*999px;/s);
+  expect(css).toMatch(/\.cost-legend\s*{[^}]*display:\s*grid;[^}]*gap:\s*var\(--space-sm\);/s);
+  expect(css).toMatch(/\.cost-legend-row\s*{[^}]*grid-template-columns:\s*12px minmax\(0,\s*1fr\) auto;/s);
+});
+
+it("styles the upcoming deadline preview as a light divided list", () => {
+  const css = fs.readFileSync("app/globals.css", "utf8");
+
+  expect(css).toMatch(/\.dashboard-card-head\s*{[^}]*display:\s*flex;[^}]*justify-content:\s*space-between;/s);
+  expect(css).toMatch(/\.deadline-preview-list\s*{[^}]*display:\s*grid;[^}]*list-style:\s*none;/s);
+  expect(css).toMatch(/\.deadline-preview-row\s*{[^}]*grid-template-columns:\s*10px minmax\(0,\s*1fr\) auto;/s);
+  expect(css).toMatch(/\.deadline-dot\s*{[^}]*background:\s*var\(--accent\);[^}]*border-radius:\s*999px;/s);
+  expect(css).toMatch(/\.deadline-preview-item\s*\+\s*\.deadline-preview-item\s*{[^}]*border-top:\s*1px solid var\(--ink-08\);/s);
+});
+
 it("adapts the app shell and controls for touch-sized mobile screens", () => {
   const css = fs.readFileSync("app/globals.css", "utf8");
 
@@ -65,7 +84,7 @@ it("avoids alignment keywords that create autoprefixer noise", () => {
 it("stretches the login card within narrow mobile viewports", () => {
   const css = fs.readFileSync("app/globals.css", "utf8");
 
-  expect(css).toMatch(/@media\s*\(max-width:\s*640px\)\s*{[^}]*\.login-screen\s*{[^}]*justify-items:\s*stretch;/s);
+  expect(css).toMatch(/@media\s*\(max-width:\s*640px\)\s*{[\s\S]*\.login-screen\s*{[^}]*justify-items:\s*stretch;/s);
   expect(css).toMatch(/\.login-card\s*{[^}]*max-width:\s*100%;[^}]*min-width:\s*0;/s);
 });
 

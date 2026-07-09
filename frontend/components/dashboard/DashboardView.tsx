@@ -4,8 +4,14 @@ import ScholarshipBars from "./ScholarshipBars";
 import StatCard from "./StatCard";
 import GlossaryPanel from "@/components/help/GlossaryPanel";
 import { daysUntil, formatEUR, mergeTimeline, yearOneTotal } from "@/lib/derived";
-import { documentCategoryLabel, statusLabel, t, timelineTypeLabel } from "@/lib/i18n";
+import { documentCategoryLabel, statusLabel, t } from "@/lib/i18n";
 import type { AppState, Lang, View } from "@/lib/types";
+
+function deadlinePreviewLabel(lang: Lang, source: "university" | "scholarship" | "custom") {
+  if (source === "university") return t(lang, "dashboard.deadlineUniversity");
+  if (source === "scholarship") return t(lang, "dashboard.deadlineScholarship");
+  return t(lang, "dashboard.deadlineCustom");
+}
 
 function nextBestAction(lang: Lang, state: AppState): { title: string; detail: string; reason: string; view: View; cta: string } {
   const missingDocument = state.documents.find((doc) => !doc.done);
@@ -103,17 +109,28 @@ export default function DashboardView({
         <StatCard label={t(lang, "dashboard.nextDeadline")} value={next ? t(lang, "timeline.days", { count: next.days ?? 0 }) : t(lang, "dashboard.none")} detail={next?.label} />
       </section>
       <section className="dashboard-panel-grid">
-        <div className="card">
-          <h2 className="card-title">{t(lang, "dashboard.upcomingDeadlines")}</h2>
-          <div className="row-list">
-            {events.slice(0, 4).map((event) => (
-              <button className="row" key={event.id} type="button" onClick={() => onNavigate("timeline")}>
-                <span className="row-main truncate"><strong>{event.label}</strong><br /><span className="muted">{timelineTypeLabel(lang, event.source)}</span></span>
-                <span className={event.days !== null && event.days <= 30 ? "chip chip-warning" : "chip"}>{t(lang, "timeline.days", { count: event.days ?? 0 })}</span>
-              </button>
-            ))}
+        <section className="card" aria-labelledby="upcoming-deadlines-title">
+          <div className="dashboard-card-head">
+            <h2 className="card-title" id="upcoming-deadlines-title">{t(lang, "dashboard.upcomingDeadlines")}</h2>
+            <button className="text-link-button" type="button" onClick={() => onNavigate("timeline")}>
+              {t(lang, "dashboard.viewTimeline")} <span aria-hidden="true">→</span>
+            </button>
           </div>
-        </div>
+          <ul className="deadline-preview-list" aria-label={t(lang, "dashboard.upcomingDeadlines")}>
+            {events.slice(0, 4).map((event) => (
+              <li className="deadline-preview-item" key={event.id}>
+                <button className="deadline-preview-row" type="button" onClick={() => onNavigate("timeline")}>
+                  <span className="deadline-dot" aria-hidden="true" />
+                  <span className="deadline-preview-main">
+                    <strong>{event.label}</strong>
+                    <span>{deadlinePreviewLabel(lang, event.source)}</span>
+                  </span>
+                  <span className="deadline-preview-days">{t(lang, "dashboard.daysCompact", { count: event.days ?? 0 })}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
         <div className="card">
           <h2 className="card-title">{t(lang, "dashboard.applicationStatus")}</h2>
           <div className="row-list">

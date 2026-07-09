@@ -151,6 +151,8 @@ activemq-data/
 
 # Environments
 .env
+.env.local
+.env.*.local
 .envrc
 .venv
 env/
@@ -237,3 +239,4 @@ impeccable/
 DESIGN.md
 PRODUCT.md
 .design-artifact/
+supabase/

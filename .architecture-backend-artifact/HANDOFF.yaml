@@ -1,0 +1,131 @@
+handoff:
+  title: "IAM / Access Key Authorization — Architecture Design"
+  context: >
+    Account owner creates an access key to authorize other users/systems,
+    with permissions scoped by policy, similar to the AWS IAM model.
+    Applies to a multi-tenant system.
+  layers:
+    - name: identity
+      description: "Who is making the request (user / role)"
+    - name: credential
+      description: "How identity is proven (access key + signature)"
+    - name: policy_authorization
+      description: "What is permitted (JSON policy, Allow/Deny evaluation)"
+
+  data_model:
+    engine: "Relational database (Postgres/MySQL), NoSQL not required"
+    tables:
+      accounts:
+        columns: [id, root_owner_id, name, created_at]
+      users:
+        columns: [id, account_id_fk, username, status, created_at]
+      groups:
+        columns: [id, account_id_fk, name]
+      user_groups:
+        note: "N-N mapping"
+        columns: [user_id_fk, group_id_fk]
+      roles:
+        columns: [id, account_id_fk, name, trust_policy_jsonb]
+        note: "trust_policy defines who is allowed to assume this role"
+      access_keys:
+        columns:
+          - id
+          - user_id_fk
+          - access_key_id      # public, appears in the request header
+          - secret_hash        # DO NOT store the raw secret as plaintext
+          - status             # enum: active | inactive
+          - last_used_at
+          - expires_at
+          - created_at
+        security_note: >
+          The secret should not be one-way hashed the same way passwords are,
+          because signature verification (HMAC) requires the original secret.
+          AWS uses envelope encryption via KMS to store the secret at rest.
+      policies:
+        columns: [id, account_id_fk, name, document_jsonb, version]
+      policy_attachments:
+        columns: [policy_id_fk, principal_type, principal_id]
+        principal_type_enum: [user, group, role]
+
+  policy_document_example:
+    version: "2026-01-01"
+    statement:
+      - effect: Allow
+        action: ["storage:Read", "storage:List"]
+        resource: ["bucket/reports/*"]
+        condition:
+          ip_range: ["10.0.0.0/8"]
+      - effect: Deny
+        action: ["storage:Delete"]
+        resource: ["*"]
+    attachment_note: >
+      A policy can be attached directly to a User, or indirectly
+      through a Group / Role.
+
+  request_signing:
+    model: "Similar to AWS SigV4"
+    steps:
+      - step: 1
+        action: >
+          Client builds a "canonical request" = method + path + query
+          + headers + body hash
+      - step: 2
+        action: "signature = HMAC-SHA256(secret_key, canonical_request)"
+      - step: 3
+        action: >
+          Sent with header:
+          Authorization: HMAC-SHA256 AccessKeyId=AKID..., Signature=...
+      - step: 4
+        action: >
+          Server receives AccessKeyId -> looks up the corresponding secret
+          and user_id in the DB -> recomputes the signature -> compares
+      - step: 5
+        action: >
+          Include a timestamp in the canonical request, reject if the
+          clock skew exceeds 5 minutes -> prevents replay attacks
+
+  request_flow:
+    sequence:
+      - client: "Signs the request with the secret key"
+      - auth_gateway: "Verifies the signature, checks TTL"
+      - policy_engine: "Evaluates: Deny > Allow > default Deny"
+      - resource: "Grants access + writes audit log"
+    note: "Every request is traced by account_id to isolate data between tenants"
+
+  policy_evaluation_order:
+    - "Collect all statements applicable to the principal: attached directly + via group + via the assumed role"
+    - "Default: Deny"
+    - "If any Deny statement matches -> Deny immediately, stop (explicit deny always wins)"
+    - "If at least one Allow statement matches and none is Denied -> Allow"
+    - "Otherwise -> Deny"
+
+  security_requirements:
+    - id: key_rotation
+      description: >
+        Allow creating a new key before disabling the old one (to avoid
+        downtime); soft-delete rather than hard-delete immediately
+    - id: temporary_credentials
+      description: >
+        STS AssumeRole style — issue short-lived tokens (15min-1h) instead
+        of permanent access keys when only temporary access is needed
+    - id: permission_boundary
+      description: >
+        An access key can be attached to a permission_boundary to cap the
+        maximum allowed permissions regardless of how broad the base policy is
+    - id: audit_log
+      description: >
+        Append-only table: principal, access_key_id, action, resource,
+        allow_deny, timestamp, ip
+    - id: rate_limit_anomaly_detection
+      description: "Monitor by access_key_id to detect a leaked/compromised key"
+
+  todo:
+    - "Define the specific resources/actions to protect (e.g. scope permissions per expert agent in Mee Agent)"
+    - "Decide the secret storage mechanism: envelope encryption via VNG's internal KMS, or an existing vault/secret manager"
+    - "Design the API/CLI for the account owner to create & revoke access keys"
+    - "Design the detailed audit log table + retention policy"
+    - "Assess whether STS-style temporary credentials are needed in phase 1 or can be deferred"
+
+  reference: >
+    This model is roughly equivalent to the vKS/internal IAM that GreenNode
+    would need for multi-tenant deployment.

@@ -8,11 +8,12 @@ export default function AccessSharingView({ lang = "en", accessTokens, theme, on
   lang?: Lang;
   accessTokens: { family: string | null; counselor: string | null };
   theme: ThemePrefs;
-  onGenerate: (role: "family" | "counselor") => void;
+  onGenerate: (role: "family" | "counselor") => Promise<string | null>;
   onCopy: (token: string) => void;
   onThemeChange: (theme: Partial<ThemePrefs>) => void;
 }) {
   const [status, setStatus] = useState("");
+  const [busyRole, setBusyRole] = useState<"family" | "counselor" | null>(null);
 
   function changeTheme(themePatch: Partial<ThemePrefs>) {
     onThemeChange(themePatch);
@@ -22,6 +23,13 @@ export default function AccessSharingView({ lang = "en", accessTokens, theme, on
   function copyToken(role: "family" | "counselor", token: string) {
     onCopy(token);
     setStatus(t(lang, "access.tokenCopied", { role: roleLabel(lang, role) }));
+  }
+
+  async function generateToken(role: "family" | "counselor") {
+    setBusyRole(role);
+    const error = await onGenerate(role);
+    setBusyRole(null);
+    setStatus(error ?? t(lang, "access.saved"));
   }
 
   return (
@@ -77,7 +85,7 @@ export default function AccessSharingView({ lang = "en", accessTokens, theme, on
             <h2 className="card-title">{t(lang, "access.token", { role: role === "family" ? roleLabel(lang, "familyMember") : roleLabel(lang, "counselor") })}</h2>
             <p className="muted">{token ?? t(lang, "access.noToken")}</p>
             <div className="token-actions">
-              <button className="btn btn-primary" type="button" onClick={() => onGenerate(role)}>{t(lang, "access.generate")}</button>
+              <button className="btn btn-primary" type="button" disabled={busyRole === role} onClick={() => generateToken(role)}>{t(lang, "access.generate")}</button>
               <button className="btn btn-quiet" type="button" disabled={!token} onClick={() => token && copyToken(role, token)}>{t(lang, "access.copyToken")}</button>
             </div>
           </section>
